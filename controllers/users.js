@@ -2,6 +2,7 @@ const { request, response } = require('express');
 const usersModel = require('../models/users')
 const pool = require('../db');
 
+//endpoint---------------------------------------------------------------------------------------
 const listUsers = async (req = request, res = response) => {
     let conn;
 
@@ -23,6 +24,7 @@ const listUsers = async (req = request, res = response) => {
     }
 }
 
+//endpoint se utilizo el metodo params -----------------------------------------------------------
 const listUserByID = async (req = request, res = response) => {
     const {id} = req.params;
 
@@ -52,46 +54,82 @@ const listUserByID = async (req = request, res = response) => {
         res.status(500).json(error);
     }finally{
         if (conn) conn.end();
-    }}
-/*================================================================================================================================================================================================================
-*/
-    const addUser = async (req = request, res = response) => {
-        const {
-            username,
-            email,
-            password,
-            name,
-            lastname,
-            phone_number = '',
-            role_id,
-            is_active = 1
-            }=req.body;
-
-
-        if (!username || !email || !password || !name || !lastname || !role_id){
-            res.status(400).json({msg: 'Missing information'});
-            return;
-        }
-
-        const user = [username, email, password, name, lastname, phone_number, role_id, is_active];
-
-        let conn;
-
-        try{
-            conn = await pool.getConnection();
-
-            const userAdded = await conn.query(usersModel.addRow,[...user],(err)=>{
-                if (err) throw err;
-            })
-            console.log(userAdded);
-
-        } catch (error) {
-            console.log(error);
-            res.status(500).json(error);
-        } finally {
-            if(conn) conn.end();
-        }
     }
+}
 
+//se utiliza el metodo body para recibir parametros----------------------------------------------
+ /**
+     *  username: 'admin'
+        email: 'admin@example.com'
+        password: '123'
+        name: 'Administrador'
+        lastname: 'Del sitio'
+        phone_number: '55555'
+        role_id: '1'
+        is_active: '1'
+     */
+const addUser = async (req = request, res = response)=>{
+    
+    const {
+        username, 
+        email, 
+        password, 
+        name, 
+        lastname,
+        phone_number = '',
+        role_id,
+        is_active = 1
+    } =req.body;
+
+if (!username || !email || !password || !name || !lastname || !role_id){
+    res.status(400).json({msg: "Missing information"});
+    return;
+}
+
+const user = [username, email, password, name, lastname, phone_number, role_id, is_active];
+   
+let conn ;
+
+try{
+    conn = await pool.getConnection();
+//---------------------
+    const [usernameUser] = await conn.query(
+        usersModel.getByUsername,
+        [username],
+        (err)=>{if(err)throw err;}
+    );
+    if (usernameUser){
+        res.status(409).json({msg: `User with username ${username} already exists`});
+        return;
+    }
+//---------------------
+    const [emailUser] = await conn.query(
+        usersModel.getByEmail,
+        [email],
+        (err)=>{if(err)throw err;}
+    );
+    if (emailUser){
+        res.status(409).json({msg: `User with username ${email} already exists`});
+        return;
+    }
+//---------------------
+    const userAdded = await conn.query(
+        usersModel.addRow, 
+        [...user], 
+        (err)=>{if(err)throw err;
+    });
+
+
+    if (userAdded.affectecRows === 0)throw new Error ({message: 'Failed to add user'});
+    res.json({msg: "User added successfully"});
+
+}catch(error){
+    console.log(error);
+    res.status(500).json(error);
+}finally{
+    if (conn) conn.end();
+}
+
+}
 
 module.exports = { listUsers, listUserByID, addUser };

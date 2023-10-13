@@ -17,6 +17,23 @@ const usersModel = {
 
         `,
 
+        getByUsername: `
+        SELECT
+            *
+        FROM
+            Users
+        WHERE
+            username = ?
+        `,
+
+        getByEmail: `
+        SELECT
+            *
+        FROM
+            Users
+        WHERE
+            email = ?
+        `,
 }
 
 module.exports = usersModel;
