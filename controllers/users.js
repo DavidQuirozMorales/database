@@ -130,6 +130,51 @@ try{
     if (conn) conn.end();
 }
 
+/*
+ENDPOINT 19/10/2023 =====================================================================================================
+USERDELETED         =====================================================================================================
+*/
+
+
 }
 
-module.exports = { listUsers, listUserByID, addUser };
+const deleteUser = async ( req = request, res = response) => {
+    let conn;
+    const {id} = req.params;
+
+    try {
+       conn = await pool.getConnection(); 
+
+       const [userExists] = await conn.query(
+        usersModel.getByID,
+        [id],
+        (err) => { throw err; }
+    )
+    if(!userExists || userExists.is_active === 0){
+        res.status(404).json({msg: 'user not found'});
+        return;
+    }
+
+    const userDeleted = await conn.query(
+        usersModel.deleteRow,
+        [id],
+        (err) => {if (err) throw err;}
+    )
+
+    if(userDeleted.affectedRows === 0){
+        throw new Error({msg: 'User not found'})
+    };
+    
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json(error);
+    } finally {
+        if (conn) conn.end();
+    }
+}
+
+
+
+
+module.exports = { listUsers, listUserByID, addUser, deleteUser };
