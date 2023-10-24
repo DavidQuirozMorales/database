@@ -35,8 +35,8 @@ const usersModel = {
             email = ?
         `,
 
-/*
-        updateUser:`
+
+        updateByID:`
         UPDATE Users
         SET username=?,
         email=?,
@@ -48,7 +48,7 @@ const usersModel = {
         is_active=?
         WHERE id=?
         `,
-*/
+
 
         deleteRow:`
             UPDATE

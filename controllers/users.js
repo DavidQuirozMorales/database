@@ -1,8 +1,9 @@
 const { request, response } = require('express');
 const usersModel = require('../models/users')
+const bcrypt = require('bcrypt');
 const pool = require('../db');
 
-//endpoint---------------------------------------------------------------------------------------
+//endpoint===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 const listUsers = async (req = request, res = response) => {
     let conn;
 
@@ -24,7 +25,7 @@ const listUsers = async (req = request, res = response) => {
     }
 }
 
-//endpoint se utilizo el metodo params -----------------------------------------------------------
+//ENDPOINT PARAMS ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 const listUserByID = async (req = request, res = response) => {
     const {id} = req.params;
 
@@ -81,12 +82,16 @@ const addUser = async (req = request, res = response)=>{
         is_active = 1
     } =req.body;
 
+
 if (!username || !email || !password || !name || !lastname || !role_id){
     res.status(400).json({msg: "Missing information"});
     return;
 }
 
-const user = [username, email, password, name, lastname, phone_number, role_id, is_active];
+const saltRounds = 10;
+const passwordHash = await bcrypt.hash(password, saltRounds);
+
+const user = [username, email, passwordHash, name, lastname, phone_number, role_id, is_active];
    
 let conn ;
 
@@ -131,8 +136,7 @@ try{
 }
 
 /*
-ENDPOINT 19/10/2023 =====================================================================================================
-USERDELETED         =====================================================================================================
+ENDPOINT 19/10/2023 USERDELETED  ==========================================================================================================================================================================================================================================================================================================================================================================================================================
 */
 
 
@@ -173,8 +177,109 @@ const deleteUser = async ( req = request, res = response) => {
         if (conn) conn.end();
     }
 }
+    /*================================================================================================================================================================================================================================================================================================================================================================================
+    ENDPOINT ACTUALIZACION
+    */
 
 
-
-
-module.exports = { listUsers, listUserByID, addUser, deleteUser };
+    const updateUser =async (req =request, res= response) =>{
+        const {id} = req.params;// Captura el ID de los parámetros en la URL
+        const {
+                username, 
+                email, 
+                password, 
+                name, 
+                lastname,
+                phone_number,
+                role_id,
+                is_active
+        } =req.body; //Extrae los datos
+    
+        let user = [
+            username, 
+            email, 
+            password, 
+            name, 
+            lastname,
+            phone_number,
+            role_id,
+            is_active
+        ];
+        
+    
+        let conn;
+    
+    
+        try{
+            conn = await pool.getConnection();
+    
+            const [userExists] = await conn.query(
+                usersModel.getByID,
+                [id],
+                (err)=> {throw err;}
+            )
+            
+            if (!userExists || userExists.is_active===0) {
+                res.status(404).json({msg: 'User not found'})
+                return;
+            }
+    
+        //---------------------
+            const [usernameUser] = await conn.query(
+                usersModel.getByUsername,
+                [username],
+                (err)=>{if(err)throw err;}
+            );
+            if (usernameUser){
+                res.status(409).json({msg: `User with username ${username} already exists`});
+                return;
+            }
+        //---------------------
+            const [emailUser] = await conn.query(
+                usersModel.getByEmail,
+                [email],
+                (err)=>{if(err)throw err;}
+            );
+            if (emailUser){
+                res.status(409).json({msg: `User with username ${email} already exists`});
+                return;
+            }
+    
+            let oldUser = [
+                userExists.username, 
+                userExists.email, 
+                userExists.password, 
+                userExists.name, 
+                userExists.lastname,
+                userExists.phone_number,
+                userExists.role_id,
+                userExists.is_active]
+            
+                user.forEach((userData, index)=>{
+                    if (!userData) {
+                        user[index] = oldUser[index]
+                    };
+                })
+    
+                const userUpdated = conn.query(
+                    usersModel.updateByID, 
+                    [...user, id],
+                    (err) => {
+                        throw err;
+                    }
+                    )
+                if (userUpdated.affectedRows===0){
+                    throw new Error('User not updated');
+                }
+                res.json({msg:'Userd updated successfully'});
+        }catch(error){
+            console.log(error);
+            res.status(500).json(error);
+            } finally {
+                if (conn) conn.end();
+            }
+    }
+    
+    
+    
+    module.exports = { listUsers, listUserByID, addUser,  deleteUser, updateUser};
